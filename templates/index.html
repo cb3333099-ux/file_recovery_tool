@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Recovery Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">💾 File Recovery Tool</h1>
+
+        <div class="theme-toggle">
+            <label class="switch">
+                <input type="checkbox" id="themeSwitch">
+                <span class="slider"></span>
+            </label>
+            <span class="theme-label">🌙 Dark Mode</span>
+        </div>
+
+        <div class="card">
+            <div class="form-group">
+                <label>Select Drive</label>
+                <div class="input-row">
+                    <input type="text" id="drive" placeholder="Drive path...">
+                    <button onclick="browseDrive()">Browse</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Select Save Directory</label>
+                <div class="input-row">
+                    <input type="text" id="saveDir" placeholder="Save directory...">
+                    <button onclick="browseSave()">Browse</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Select File Type</label>
+                <select id="fileType">
+                    <option value="">All Files</option>
+                    <option value=".txt">Text Files (.txt)</option>
+                    <option value=".jpg">Images (.jpg)</option>
+                    <option value=".png">Images (.png)</option>
+                    <option value=".pdf">PDF (.pdf)</option>
+                </select>
+            </div>
+
+            <!-- 🔍 Advanced Filters -->
+            <details class="filters">
+                <summary>Advanced Filters ⚙️</summary>
+
+                <div class="form-group">
+                    <label>Filter by File Size (optional)</label>
+                    <div class="input-row">
+                        <input type="number" id="minSize" placeholder="Min (KB)">
+                        <input type="number" id="maxSize" placeholder="Max (KB)">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Filter by Modified Date (optional)</label>
+                    <div class="input-row">
+                        <input type="date" id="startDate" placeholder="Start date">
+                        <input type="date" id="endDate" placeholder="End date">
+                    </div>
+                </div>
+            </details>
+
+            <button class="btn-primary" onclick="scanFiles()">🔍 Scan for Files</button>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+                <p id="status">Ready to scan</p>
+            </div>
+
+            <div id="summary" class="summary-card hidden"></div>
+            <div id="results" class="results-list"></div>
+            <button class="btn-success" onclick="recoverSelected()">♻️ Recover Selected Files</button>
+        </div>
+    </div>
+
+    <!-- 🖼️ Preview Modal -->
+    <div id="previewModal" class="modal hidden">
+        <div id="modalContent" class="modal-content" onmousedown="startDrag(event)">
+            <div class="modal-header">
+                <span class="drag-handle">👁️ Preview</span>
+                <span class="close" onclick="closePreview()">&times;</span>
+            </div>
+            <div id="previewContent"></div>
+            <div class="resize-handle" onmousedown="startResize(event)"></div>
+        </div>
+    </div>
+
+    <div id="loading-spinner" class="spinner hidden"></div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    <script>
+        const themeSwitch = document.getElementById("themeSwitch");
+        themeSwitch.addEventListener("change", () => {
+            document.body.classList.toggle("dark-mode", themeSwitch.checked);
+            localStorage.setItem("darkMode", themeSwitch.checked);
+        });
+        window.addEventListener("load", () => {
+            const isDark = localStorage.getItem("darkMode") === "true";
+            document.body.classList.toggle("dark-mode", isDark);
+            themeSwitch.checked = isDark;
+        });
+    </script>
+</body>
+</html>
