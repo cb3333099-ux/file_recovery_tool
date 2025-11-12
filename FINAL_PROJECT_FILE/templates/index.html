@@ -3,68 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced File Recovery Tool</title>
-
-    <!-- Bootstrap for a modern look -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>File Recovery Tool</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="text-primary">Smart File Recovery Tool</h1>
-            <button id="themeToggle" class="btn btn-dark btn-sm">🌙 Toggle Dark Mode</button>
+    <div class="container">
+        <h1 class="title">💾 File Recovery Tool</h1>
+
+        <div class="theme-toggle">
+            <label class="switch">
+                <input type="checkbox" id="themeSwitch">
+                <span class="slider"></span>
+            </label>
+            <span class="theme-label">🌙 Dark Mode</span>
         </div>
 
-        <div class="form-group mb-3">
-            <label>Select Drive</label>
-            <div class="d-flex">
-                <input type="text" id="drive" class="form-control me-2" placeholder="Drive path...">
-                <button onclick="browseDrive()" class="btn btn-primary">Browse</button>
+        <div class="card">
+            <div class="form-group">
+                <label>Select Drive</label>
+                <div class="input-row">
+                    <input type="text" id="drive" placeholder="Drive path...">
+                    <button onclick="browseDrive()">Browse</button>
+                </div>
             </div>
-        </div>
 
-        <div class="form-group mb-3">
-            <label>Select Save Directory</label>
-            <div class="d-flex">
-                <input type="text" id="saveDir" class="form-control me-2" placeholder="Save directory...">
-                <button onclick="browseSave()" class="btn btn-primary">Browse</button>
+            <div class="form-group">
+                <label>Select Save Directory</label>
+                <div class="input-row">
+                    <input type="text" id="saveDir" placeholder="Save directory...">
+                    <button onclick="browseSave()">Browse</button>
+                </div>
             </div>
-        </div>
 
-        <div class="form-group mb-3">
-            <label>Select File Type</label>
-            <select id="fileType" class="form-select">
-                <option value=".txt">.txt</option>
-                <option value=".docx">.docx</option>
-                <option value=".xlsx">.xlsx</option>
-                <option value=".pptx">.pptx</option>
-                <option value=".pdf">.pdf</option>
-                <option value=".jpg">.jpg</option>
-                <option value=".png">.png</option>
-            </select>
-        </div>
+            <div class="form-group">
+                <label>Select File Type</label>
+                <select id="fileType">
+                    <option value="">All Files</option>
+                    <option value=".txt">Text Files (.txt)</option>
+                    <option value=".jpg">Images (.jpg)</option>
+                    <option value=".png">Images (.png)</option>
+                    <option value=".pdf">PDF (.pdf)</option>
+                </select>
+            </div>
 
-        <div class="mb-3">
-            <button onclick="scanFiles()" class="btn btn-success">Scan for Deleted Files</button>
-            <button onclick="recoverFiles()" class="btn btn-info">Recover Selected Files</button>
-            <button onclick="deleteFiles()" class="btn btn-danger">Delete Permanently</button>
-        </div>
+            <!-- 🔍 Advanced Filters -->
+            <details class="filters">
+                <summary>Advanced Filters ⚙️</summary>
 
-        <div class="progress-container mb-3">
-            <label>Progress</label>
-            <div id="progressBar" class="progress-bar"></div>
-        </div>
+                <div class="form-group">
+                    <label>Filter by File Size (optional)</label>
+                    <div class="input-row">
+                        <input type="number" id="minSize" placeholder="Min (KB)">
+                        <input type="number" id="maxSize" placeholder="Max (KB)">
+                    </div>
+                </div>
 
-        <div id="status" class="text-muted mb-3"></div>
+                <div class="form-group">
+                    <label>Filter by Modified Date (optional)</label>
+                    <div class="input-row">
+                        <input type="date" id="startDate" placeholder="Start date">
+                        <input type="date" id="endDate" placeholder="End date">
+                    </div>
+                </div>
+            </details>
 
-        <div class="form-group">
-            <label>Deleted Files</label>
-            <input type="text" id="searchBox" placeholder="Search files..." class="form-control mb-2">
-            <select id="fileList" multiple class="form-control" size="10"></select>
+            <button class="btn-primary" onclick="scanFiles()">🔍 Scan for Files</button>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+                <p id="status">Ready to scan</p>
+            </div>
+
+            <div id="summary" class="summary-card hidden"></div>
+            <div id="results" class="results-list"></div>
+            <button class="btn-success" onclick="recoverSelected()">♻️ Recover Selected Files</button>
         </div>
     </div>
 
+    <!-- 🖼️ Preview Modal -->
+    <div id="previewModal" class="modal hidden">
+        <div id="modalContent" class="modal-content" onmousedown="startDrag(event)">
+            <div class="modal-header">
+                <span class="drag-handle">👁️ Preview</span>
+                <span class="close" onclick="closePreview()">&times;</span>
+            </div>
+            <div id="previewContent"></div>
+            <div class="resize-handle" onmousedown="startResize(event)"></div>
+        </div>
+    </div>
+
+    <div id="loading-spinner" class="spinner hidden"></div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    <script>
+        const themeSwitch = document.getElementById("themeSwitch");
+        themeSwitch.addEventListener("change", () => {
+            document.body.classList.toggle("dark-mode", themeSwitch.checked);
+            localStorage.setItem("darkMode", themeSwitch.checked);
+        });
+        window.addEventListener("load", () => {
+            const isDark = localStorage.getItem("darkMode") === "true";
+            document.body.classList.toggle("dark-mode", isDark);
+            themeSwitch.checked = isDark;
+        });
+    </script>
 </body>
 </html>

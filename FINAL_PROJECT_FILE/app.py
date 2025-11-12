@@ -1,18 +1,17 @@
-import os
-import threading
-import webbrowser
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from tkinter import Tk, filedialog
 from file_operations import scan_files, recover_files
+import threading, webbrowser, uuid, os, base64
+from urllib.parse import unquote
 
 app = Flask(__name__)
 CORS(app)
 
 progress = {'scan': 0, 'recover': 0}
+jobs = {}
 
-
-# 🗂️ Folder Selection (using Tkinter)
+# Folder picker
 def browse_folder():
     root = Tk()
     root.withdraw()
@@ -22,77 +21,117 @@ def browse_folder():
     return folder_path
 
 
-# 🌐 Homepage
 @app.route('/')
 def index():
     return render_template('index.html')
 
 
-# 📁 Browse Drive
-@app.route('/browse_drive', methods=['GET'])
+@app.route('/browse_drive')
 def browse_drive():
-    path = browse_folder()
-    return jsonify({'path': path})
+    return jsonify({'path': browse_folder()})
 
 
-# 💾 Browse Save Directory
-@app.route('/browse_save', methods=['GET'])
+@app.route('/browse_save')
 def browse_save():
-    path = browse_folder()
-    return jsonify({'path': path})
+    return jsonify({'path': browse_folder()})
 
 
-# 🔍 Scan Files by Type
-@app.route('/scan_files', methods=['GET'])
+@app.route('/scan', methods=['POST'])
 def scan_files_route():
-    drive = request.args.get('drive')
-    file_type = request.args.get('fileType')
-    files = scan_files(drive, file_type)
+    data = request.get_json()
+    drive = data.get('drive')
+    file_type = data.get('file_type')
+    min_size = data.get('min_size')
+    max_size = data.get('max_size')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
 
-    # Add file sizes
-    for f in files:
-        if os.path.exists(f['path']):
-            f['size'] = os.path.getsize(f['path']) // 1024  # KB
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {'status': 'running', 'files': []}
+    progress['scan'] = 0
 
-    progress['scan'] = 100
-    return jsonify({'files': files})
+    def run_scan():
+        try:
+            files = scan_files(drive, file_type, min_size, max_size, start_date, end_date)
+            jobs[job_id]['files'] = files
+            jobs[job_id]['status'] = 'done'
+            progress['scan'] = 100
+        except Exception as e:
+            jobs[job_id]['status'] = 'error'
+            jobs[job_id]['error'] = str(e)
+            progress['scan'] = 0
+
+    threading.Thread(target=run_scan).start()
+    return jsonify({'job_id': job_id}), 202
 
 
-# ♻️ Recover Selected Files
-@app.route('/recover_files', methods=['POST'])
+@app.route('/recover', methods=['POST'])
 def recover_files_route():
     data = request.get_json()
-    save_dir = data['saveDir']
-    files = [{'path': f.split(" - ")[1].split(" (")[0]} for f in data['files']]
-    recover_files(files, save_dir)
-    progress['recover'] = 100
-    return jsonify({'status': 'success'})
+    save_dir = data.get('save_dir')
+    files = data.get('files', [])
+    job_id = str(uuid.uuid4())
+    jobs[job_id] = {'status': 'running', 'recovered': []}
+    progress['recover'] = 0
+
+    def run_recover():
+        try:
+            recovered = recover_files(files, save_dir)
+            jobs[job_id]['recovered'] = recovered
+            jobs[job_id]['status'] = 'done'
+            progress['recover'] = 100
+        except Exception as e:
+            jobs[job_id]['status'] = 'error'
+            jobs[job_id]['error'] = str(e)
+            progress['recover'] = 0
+
+    threading.Thread(target=run_recover).start()
+    return jsonify({'job_id': job_id}), 202
 
 
-# 📊 Progress Status
-@app.route('/progress', methods=['GET'])
+@app.route('/progress')
 def get_progress():
     return jsonify(progress)
 
 
-# 🗑️ Permanently Delete Selected Files
-@app.route('/delete_files', methods=['POST'])
-def delete_files_route():
-    data = request.get_json()
-    files = [f.split(" - ")[1].split(" (")[0] for f in data['files']]
-    deleted = []
+@app.route('/job_result')
+def job_result():
+    job_id = request.args.get('job_id')
+    if not job_id or job_id not in jobs:
+        return jsonify({'error': 'invalid job id'}), 404
+    return jsonify(jobs[job_id])
 
-    for file_path in files:
+
+@app.route('/preview')
+def preview_file():
+    file_path = unquote(request.args.get('path', ''))
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({'error': 'File not found'}), 404
+
+    ext = os.path.splitext(file_path)[1].lower()
+
+    # --- Image Preview ---
+    if ext in ['.jpg', '.jpeg', '.png', '.gif']:
+        with open(file_path, "rb") as img:
+            encoded = base64.b64encode(img.read()).decode('utf-8')
+        return jsonify({
+            'type': 'image',
+            'content': f"data:image/{ext.replace('.', '')};base64,{encoded}"
+        })
+
+    # --- Text Preview ---
+    elif ext in ['.txt', '.log', '.md']:
         try:
-            os.remove(file_path)
-            deleted.append(file_path)
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read(2000)
+            return jsonify({'type': 'text', 'content': content})
         except Exception as e:
-            print(f"Could not delete {file_path}: {e}")
+            return jsonify({'error': str(e)}), 500
 
-    return jsonify({'deleted': deleted})
+    else:
+        return jsonify({'error': 'Unsupported file type'}), 400
 
 
-# 🚀 Auto-open Browser on Start
 def open_browser():
     webbrowser.open_new("http://127.0.0.1:5000")
 
